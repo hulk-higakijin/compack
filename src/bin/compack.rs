@@ -45,11 +45,13 @@ _compack_completion_or_space() {
             if [[ -n "$selected" ]]; then
                 # User selected a subcommand
                 LBUFFER="${cmd} ${selected}"
+                # Execute the command immediately
+                zle accept-line
+            else
+                # If nothing selected (ESC pressed), LBUFFER stays as "${cmd} " with the space
+                # Redraw the prompt to show the current buffer
+                zle reset-prompt
             fi
-            # If nothing selected (ESC pressed), LBUFFER stays as "${cmd} " with the space
-            
-            # Redraw the prompt to show the current buffer
-            zle reset-prompt
         fi
         # If no candidates (command not defined), just keep the space as normal input
     fi
