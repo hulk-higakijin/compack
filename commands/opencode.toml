@@ -1,0 +1,12 @@
+subcommands = [
+    "acp",
+    "attach",
+    "run",
+    "auth",
+    "agent",
+    "upgrade",
+    "serve",
+    "models",
+    "export",
+    "github",
+]

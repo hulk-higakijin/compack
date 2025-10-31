@@ -15,18 +15,45 @@ pub struct CommandConfig {
 }
 
 impl Config {
-    /// Load configuration from a file
-    pub fn load(path: &PathBuf) -> Result<Self, Box<dyn std::error::Error>> {
-        let content = fs::read_to_string(path)?;
-        let config: Config = toml::from_str(&content)?;
-        Ok(config)
+    /// Load configuration from a directory containing TOML files
+    pub fn load(dir_path: &PathBuf) -> Result<Self, Box<dyn std::error::Error>> {
+        let mut commands = HashMap::new();
+
+        // Check if directory exists
+        if !dir_path.exists() {
+            return Err(format!("Config directory not found: {}", dir_path.display()).into());
+        }
+
+        // Read all .toml files in the directory
+        for entry in fs::read_dir(dir_path)? {
+            let entry = entry?;
+            let path = entry.path();
+
+            // Only process .toml files
+            if path.is_file() && path.extension().and_then(|s| s.to_str()) == Some("toml") {
+                let content = fs::read_to_string(&path)?;
+                let command_config: CommandConfig = toml::from_str(&content)?;
+
+                // Use filename (without extension) as command name
+                if let Some(command_name) = path.file_stem().and_then(|s| s.to_str()) {
+                    commands.insert(command_name.to_string(), command_config);
+                }
+            }
+        }
+
+        Ok(Config { commands })
     }
 
-    /// Get default config file path (~/.config/compack/commands.toml)
-    pub fn default_config_path() -> Result<PathBuf, io::Error> {
-        let config_dir = dirs::config_dir()
-            .ok_or_else(|| io::Error::new(io::ErrorKind::NotFound, "Config directory not found"))?;
-        Ok(config_dir.join("compack").join("commands.toml"))
+    /// Get default config directory path (project_root/commands/)
+    pub fn default_config_dir() -> Result<PathBuf, io::Error> {
+        // Use environment variable if set, otherwise use current directory
+        if let Ok(path) = std::env::var("COMPACK_CONFIG_DIR") {
+            return Ok(PathBuf::from(path));
+        }
+
+        // Use current directory + commands
+        let current_dir = std::env::current_dir()?;
+        Ok(current_dir.join("commands"))
     }
 
     /// Create default configuration with example commands
@@ -82,15 +109,18 @@ impl Config {
         Config { commands }
     }
 
-    /// Save configuration to a file
-    pub fn save(&self, path: &PathBuf) -> Result<(), Box<dyn std::error::Error>> {
-        // Create parent directories if they don't exist
-        if let Some(parent) = path.parent() {
-            fs::create_dir_all(parent)?;
+    /// Save configuration to a directory (each command as a separate file)
+    pub fn save(&self, dir_path: &PathBuf) -> Result<(), Box<dyn std::error::Error>> {
+        // Create directory if it doesn't exist
+        fs::create_dir_all(dir_path)?;
+
+        // Save each command as a separate file
+        for (command_name, command_config) in &self.commands {
+            let file_path = dir_path.join(format!("{}.toml", command_name));
+            let content = toml::to_string_pretty(command_config)?;
+            fs::write(file_path, content)?;
         }
 
-        let content = toml::to_string_pretty(self)?;
-        fs::write(path, content)?;
         Ok(())
     }
 

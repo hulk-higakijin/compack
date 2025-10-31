@@ -75,23 +75,23 @@ fn main() {
 }
 
 fn handle_query(command: &str) {
-    // Get config file path
-    let config_path = match Config::default_config_path() {
+    // Get config directory path
+    let config_dir = match Config::default_config_dir() {
         Ok(path) => path,
         Err(e) => {
-            eprintln!("Error: Failed to get config path: {}", e);
+            eprintln!("Error: Failed to get config directory: {}", e);
             process::exit(1);
         }
     };
 
-    // Check if config file exists
-    if !config_path.exists() {
-        eprintln!("Error: Config file not found. Run 'compack init' first.");
+    // Check if config directory exists
+    if !config_dir.exists() {
+        eprintln!("Error: Config directory not found. Run 'compack init' first.");
         process::exit(1);
     }
 
     // Load config
-    let config = match Config::load(&config_path) {
+    let config = match Config::load(&config_dir) {
         Ok(config) => config,
         Err(e) => {
             eprintln!("Error: Failed to load config: {}", e);
@@ -124,19 +124,19 @@ fn handle_init(shell: Option<&str>) {
             process::exit(1);
         }
         None => {
-            // Initialize config file
-            let config_path = match Config::default_config_path() {
+            // Initialize config directory
+            let config_dir = match Config::default_config_dir() {
                 Ok(path) => path,
                 Err(e) => {
-                    eprintln!("Error: Failed to get config path: {}", e);
+                    eprintln!("Error: Failed to get config directory: {}", e);
                     process::exit(1);
                 }
             };
 
             // Check if config already exists
-            if config_path.exists() {
-                eprintln!("Config file already exists at: {}", config_path.display());
-                eprintln!("To reinitialize, please delete the file first.");
+            if config_dir.exists() {
+                eprintln!("Config directory already exists at: {}", config_dir.display());
+                eprintln!("To reinitialize, please delete the directory first.");
                 process::exit(1);
             }
 
@@ -144,12 +144,17 @@ fn handle_init(shell: Option<&str>) {
             let config = Config::default();
 
             // Save config
-            if let Err(e) = config.save(&config_path) {
+            if let Err(e) = config.save(&config_dir) {
                 eprintln!("Error: Failed to save config: {}", e);
                 process::exit(1);
             }
 
-            println!("Created: {}", config_path.display());
+            println!("Created config directory: {}", config_dir.display());
+            println!();
+            println!("Created default command files:");
+            for command_name in config.commands.keys() {
+                println!("  - {}.toml", command_name);
+            }
             println!();
             println!("To enable zsh integration, add the following to your .zshrc:");
             println!();
