@@ -40,7 +40,7 @@ _compack_completion_or_space() {
 
         if [[ -n "$candidates" ]]; then
             # Command is defined, open fzf
-            local selected=$(echo "$candidates" | fzf --height 40% --reverse --prompt="$cmd > ")
+            local selected=$(echo "$candidates" | fzf --height 40% --reverse --prompt="$cmd > " --bind=tab:down,shift-tab:up)
 
             if [[ -n "$selected" ]]; then
                 # User selected a subcommand
