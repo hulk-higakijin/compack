@@ -39,14 +39,24 @@ _compack_completion_or_space() {
         local candidates=$(compack query "$cmd" 2>/dev/null)
 
         if [[ -n "$candidates" ]]; then
+            # Add a special option to run without subcommand
+            local all_options="[Run without subcommand]"$'\n'"$candidates"
+            
             # Command is defined, open fzf
-            local selected=$(echo "$candidates" | fzf --height 40% --reverse --prompt="$cmd > " --bind=tab:down,shift-tab:up)
+            local selected=$(echo "$all_options" | fzf --height 40% --reverse --prompt="$cmd > " --bind=tab:down,shift-tab:up)
 
             if [[ -n "$selected" ]]; then
-                # User selected a subcommand
-                LBUFFER="${cmd} ${selected}"
-                # Execute the command immediately
-                zle accept-line
+                if [[ "$selected" == "[Run without subcommand]" ]]; then
+                    # User wants to run the command without subcommand
+                    LBUFFER="${cmd}"
+                    # Execute the command immediately
+                    zle accept-line
+                else
+                    # User selected a subcommand
+                    LBUFFER="${cmd} ${selected}"
+                    # Execute the command immediately
+                    zle accept-line
+                fi
             else
                 # If nothing selected (ESC pressed), LBUFFER stays as "${cmd} " with the space
                 # Redraw the prompt to show the current buffer
