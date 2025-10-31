@@ -56,58 +56,38 @@ impl Config {
         Ok(current_dir.join("commands"))
     }
 
-    /// Create default configuration with example commands
-    pub fn default() -> Self {
-        let mut commands = HashMap::new();
-
-        commands.insert(
-            "opencode".to_string(),
-            CommandConfig {
-                subcommands: vec![
-                    "acp".to_string(),
-                    "attach".to_string(),
-                    "run".to_string(),
-                    "auth".to_string(),
-                    "agent".to_string(),
-                    "upgrade".to_string(),
-                    "serve".to_string(),
-                    "models".to_string(),
-                    "export".to_string(),
-                    "github".to_string(),
-                ],
-            },
-        );
-
-        commands.insert(
-            "cargo".to_string(),
-            CommandConfig {
-                subcommands: vec![
-                    "build".to_string(),
-                    "run".to_string(),
-                    "test".to_string(),
-                    "check".to_string(),
-                    "clean".to_string(),
-                    "doc".to_string(),
-                ],
-            },
-        );
-
-        commands.insert(
-            "rails".to_string(),
-            CommandConfig {
-                subcommands: vec![
-                    "new".to_string(),
-                    "server".to_string(),
-                    "console".to_string(),
-                    "generate".to_string(),
-                    "db:migrate".to_string(),
-                    "routes".to_string(),
-                ],
-            },
-        );
-
-        Config { commands }
+    /// Get the bundled commands directory (from the project root at compile time)
+    pub fn bundled_commands_dir() -> PathBuf {
+        // This assumes the binary is being run from the project root during development
+        // In production, this would need to be handled differently (e.g., embedded in binary)
+        PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("commands")
     }
+
+    /// Copy bundled command files to the target directory
+    pub fn copy_bundled_commands(target_dir: &PathBuf) -> Result<(), Box<dyn std::error::Error>> {
+        let bundled_dir = Self::bundled_commands_dir();
+        
+        // Create target directory if it doesn't exist
+        fs::create_dir_all(target_dir)?;
+
+        // Copy all .toml files from bundled directory
+        for entry in fs::read_dir(&bundled_dir)? {
+            let entry = entry?;
+            let path = entry.path();
+
+            if path.is_file() 
+                && path.extension().and_then(|s| s.to_str()) == Some("toml")
+                && let Some(file_name) = path.file_name()
+            {
+                let target_path = target_dir.join(file_name);
+                fs::copy(&path, &target_path)?;
+            }
+        }
+
+        Ok(())
+    }
+
+
 
     /// Save configuration to a directory (each command as a separate file)
     pub fn save(&self, dir_path: &PathBuf) -> Result<(), Box<dyn std::error::Error>> {
@@ -135,8 +115,10 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_default_config() {
-        let config = Config::default();
+    fn test_load_bundled_commands() {
+        let bundled_dir = Config::bundled_commands_dir();
+        let config = Config::load(&bundled_dir).expect("Failed to load bundled commands");
+        
         assert!(config.commands.contains_key("opencode"));
         assert!(config.commands.contains_key("cargo"));
         assert!(config.commands.contains_key("rails"));
@@ -144,9 +126,35 @@ mod tests {
 
     #[test]
     fn test_get_subcommands() {
-        let config = Config::default();
+        let bundled_dir = Config::bundled_commands_dir();
+        let config = Config::load(&bundled_dir).expect("Failed to load bundled commands");
+        
         let subcommands = config.get_subcommands("opencode");
         assert!(subcommands.is_some());
         assert!(subcommands.unwrap().contains(&"acp".to_string()));
+    }
+
+    #[test]
+    fn test_copy_bundled_commands() {
+        use std::env;
+        
+        // Create a temporary directory
+        let temp_dir = env::temp_dir().join("compack_test");
+        
+        // Clean up if it exists
+        if temp_dir.exists() {
+            fs::remove_dir_all(&temp_dir).ok();
+        }
+        
+        // Copy bundled commands
+        Config::copy_bundled_commands(&temp_dir).expect("Failed to copy bundled commands");
+        
+        // Verify files were copied
+        assert!(temp_dir.join("opencode.toml").exists());
+        assert!(temp_dir.join("cargo.toml").exists());
+        assert!(temp_dir.join("rails.toml").exists());
+        
+        // Clean up
+        fs::remove_dir_all(&temp_dir).ok();
     }
 }
