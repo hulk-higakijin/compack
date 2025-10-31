@@ -7,38 +7,36 @@ _compack_completion_or_space() {
     # Get the command (first word before space)
     local cmd="${LBUFFER%% *}"
 
-    # Only trigger if we have exactly one word and just typed a space
-    if [[ "$LBUFFER" == "$cmd " && "$cmd" != "" ]]; then
-        # Check if this command has subcommands defined
-        local candidates=$(compack query "$cmd" 2>/dev/null)
+    # Early return: Only trigger if we have exactly one word and just typed a space
+    [[ "$LBUFFER" != "$cmd " || -z "$cmd" ]] && return
 
-        if [[ -n "$candidates" ]]; then
-            # Add a special option to run without subcommand
-            local all_options="[Run without subcommand]"$'\n'"$candidates"
-            
-            # Command is defined, open fzf
-            local selected=$(echo "$all_options" | fzf --height 40% --reverse --prompt="$cmd > " --bind=tab:down,shift-tab:up)
+    # Check if this command has subcommands defined
+    local candidates=$(compack query "$cmd" 2>/dev/null)
+    
+    # Early return: No candidates means command not defined, keep space as normal input
+    [[ -z "$candidates" ]] && return
 
-            if [[ -n "$selected" ]]; then
-                if [[ "$selected" == "[Run without subcommand]" ]]; then
-                    # User wants to run the command without subcommand
-                    LBUFFER="${cmd}"
-                    # Execute the command immediately
-                    zle accept-line
-                else
-                    # User selected a subcommand
-                    LBUFFER="${cmd} ${selected}"
-                    # Execute the command immediately
-                    zle accept-line
-                fi
-            else
-                # If nothing selected (ESC pressed), LBUFFER stays as "${cmd} " with the space
-                # Redraw the prompt to show the current buffer
-                zle reset-prompt
-            fi
-        fi
-        # If no candidates (command not defined), just keep the space as normal input
+    # Add a special option to run without subcommand
+    local all_options="[Run without subcommand]"$'\n'"$candidates"
+    
+    # Open fzf for selection
+    local selected=$(echo "$all_options" | fzf --height 40% --reverse --prompt="$cmd > " --bind=tab:down,shift-tab:up)
+
+    # Handle ESC pressed (nothing selected)
+    if [[ -z "$selected" ]]; then
+        zle reset-prompt
+        return
     fi
+
+    # Set the command line based on selection
+    if [[ "$selected" == "[Run without subcommand]" ]]; then
+        LBUFFER="${cmd}"
+    else
+        LBUFFER="${cmd} ${selected}"
+    fi
+    
+    # Execute the command
+    zle accept-line
 }
 
 zle -N _compack_completion_or_space
