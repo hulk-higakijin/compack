@@ -1,0 +1,8 @@
+subcommands = [
+    "build",
+    "run",
+    "test",
+    "check",
+    "clean",
+    "doc",
+]

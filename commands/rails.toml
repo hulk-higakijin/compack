@@ -1,0 +1,8 @@
+subcommands = [
+    "new",
+    "server",
+    "console",
+    "generate",
+    "db:migrate",
+    "routes",
+]

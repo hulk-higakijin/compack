@@ -43,7 +43,8 @@ $ opencode [スペース入力]
 
 2. **設定ファイル（TOML）**
    - 各コマンドのサブコマンド候補を手動定義
-   - `~/.config/compack/commands.toml`
+   - プロジェクト内の`commands/`ディレクトリに配置
+   - 各コマンドごとに独立したファイル（例: `opencode.toml`, `cargo.toml`）
 
 3. **zsh統合スクリプト**
    - コマンド入力の検知
@@ -58,10 +59,10 @@ $ opencode [スペース入力]
 
 ## 設定ファイル形式
 
-```toml
-# ~/.config/compack/commands.toml
+各コマンドは`commands/`ディレクトリ内に独立したTOMLファイルとして配置されます。
 
-[commands.opencode]
+### commands/opencode.toml
+```toml
 subcommands = [
   "acp",
   "attach",
@@ -74,8 +75,10 @@ subcommands = [
   "export",
   "github"
 ]
+```
 
-[commands.cargo]
+### commands/cargo.toml
+```toml
 subcommands = [
   "build",
   "run",
@@ -84,8 +87,10 @@ subcommands = [
   "clean",
   "doc"
 ]
+```
 
-[commands.rails]
+### commands/rails.toml
+```toml
 subcommands = [
   "new",
   "server",
@@ -95,6 +100,8 @@ subcommands = [
   "routes"
 ]
 ```
+
+**新しいコマンドの追加方法**: `commands/`ディレクトリに新しいTOMLファイルを作成するだけで自動的に認識されます。
 
 ## CLI インターフェース
 
@@ -114,35 +121,45 @@ export
 github
 ```
 
-### 設定ファイルの初期化
+### zsh統合スクリプトの生成
 
 ```bash
-$ compack init
-Created: ~/.config/compack/commands.toml
+$ compack init zsh
+# compack zsh integration
+_compack_completion() {
+    ...
+}
+...
 ```
 
-### zsh統合の初期化
+このコマンドで生成されたスクリプトを`.zshrc`に追加します：
 
 ```bash
-# .zshrc に追加
 eval "$(compack init zsh)"
 ```
 
 ## インストール
 
 ```bash
+# リポジトリのクローン
+git clone <repository-url>
+cd compack
+
 # ビルド
 cargo build --release
 
 # インストール
 cargo install --path .
 
-# 設定ファイル初期化
-compack init
-
-# zsh統合設定
+# zsh統合設定（.zshrcに追加）
 echo 'eval "$(compack init zsh)"' >> ~/.zshrc
+
+# シェルを再起動または設定を再読み込み
+source ~/.zshrc
 ```
+
+**注意**: 設定ファイルはプロジェクト内の`commands/`ディレクトリに配置されています。
+新しいコマンドを追加する場合は、`commands/`ディレクトリに新しいTOMLファイルを作成してください。
 
 ## 依存関係
 
