@@ -14,9 +14,19 @@ pub struct Config {
     pub commands: HashMap<String, CommandConfig>,
 }
 
+#[derive(Debug, Deserialize, Serialize, Clone)]
+#[serde(untagged)]
+pub enum SubcommandItem {
+    Simple(String),
+    Nested {
+        name: String,
+        subcommands: Vec<String>,
+    },
+}
+
 #[derive(Debug, Deserialize, Serialize)]
 pub struct CommandConfig {
-    pub subcommands: Vec<String>,
+    pub subcommands: Vec<SubcommandItem>,
 }
 
 impl Config {
@@ -109,9 +119,49 @@ impl Config {
         Ok(())
     }
 
-    /// Get subcommands for a specific command
-    pub fn get_subcommands(&self, command: &str) -> Option<&Vec<String>> {
-        self.commands.get(command).map(|c| &c.subcommands)
+    /// Get subcommands for a specific command or nested subcommand
+    /// For example:
+    /// - get_subcommands("opencode", None) returns all top-level subcommands
+    /// - get_subcommands("opencode", Some("github")) returns nested subcommands under "github"
+    pub fn get_subcommands(&self, command: &str, nested: Option<&str>) -> Option<Vec<String>> {
+        let cmd_config = self.commands.get(command)?;
+        
+        match nested {
+            None => {
+                // Return top-level subcommands
+                Some(cmd_config.subcommands.iter().map(|item| {
+                    match item {
+                        SubcommandItem::Simple(name) => name.clone(),
+                        SubcommandItem::Nested { name, .. } => name.clone(),
+                    }
+                }).collect())
+            }
+            Some(nested_name) => {
+                // Find the nested subcommand and return its children
+                for item in &cmd_config.subcommands {
+                    if let SubcommandItem::Nested { name, subcommands } = item {
+                        if name == nested_name {
+                            return Some(subcommands.clone());
+                        }
+                    }
+                }
+                None
+            }
+        }
+    }
+    
+    /// Check if a subcommand has nested subcommands
+    pub fn has_nested_subcommands(&self, command: &str, subcommand: &str) -> bool {
+        if let Some(cmd_config) = self.commands.get(command) {
+            for item in &cmd_config.subcommands {
+                if let SubcommandItem::Nested { name, .. } = item {
+                    if name == subcommand {
+                        return true;
+                    }
+                }
+            }
+        }
+        false
     }
 }
 
@@ -134,9 +184,36 @@ mod tests {
         let bundled_dir = Config::bundled_commands_dir();
         let config = Config::load(&bundled_dir).expect("Failed to load bundled commands");
         
-        let subcommands = config.get_subcommands("opencode");
+        let subcommands = config.get_subcommands("opencode", None);
         assert!(subcommands.is_some());
-        assert!(subcommands.unwrap().contains(&"acp".to_string()));
+        let cmds = subcommands.unwrap();
+        assert!(cmds.contains(&"acp".to_string()));
+        assert!(cmds.contains(&"github".to_string()));
+    }
+    
+    #[test]
+    fn test_nested_subcommands() {
+        let bundled_dir = Config::bundled_commands_dir();
+        let config = Config::load(&bundled_dir).expect("Failed to load bundled commands");
+        
+        // Test that github has nested subcommands
+        assert!(config.has_nested_subcommands("opencode", "github"));
+        
+        // Test that we can get nested subcommands
+        let nested = config.get_subcommands("opencode", Some("github"));
+        assert!(nested.is_some());
+        let nested_cmds = nested.unwrap();
+        assert!(nested_cmds.contains(&"install".to_string()));
+        assert!(nested_cmds.contains(&"run".to_string()));
+    }
+    
+    #[test]
+    fn test_simple_subcommand_not_nested() {
+        let bundled_dir = Config::bundled_commands_dir();
+        let config = Config::load(&bundled_dir).expect("Failed to load bundled commands");
+        
+        // Test that acp does not have nested subcommands
+        assert!(!config.has_nested_subcommands("opencode", "acp"));
     }
 
     #[test]

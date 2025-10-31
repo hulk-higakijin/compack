@@ -22,12 +22,23 @@ fn load_config(config_dir: &PathBuf) -> Config {
 }
 
 /// Handle the query subcommand
-pub fn handle_query(command: &str) {
+/// Supports both:
+/// - "opencode" -> returns top-level subcommands
+/// - "opencode github" -> returns nested subcommands under "github"
+pub fn handle_query(query: &str) {
     let config_dir = get_config_dir();
     let config = load_config(&config_dir);
 
+    // Split the query into command and optional subcommand
+    let parts: Vec<&str> = query.split_whitespace().collect();
+    let (command, nested) = match parts.as_slice() {
+        [cmd] => (*cmd, None),
+        [cmd, sub, ..] => (*cmd, Some(*sub)),
+        _ => exit_success(),
+    };
+
     // Get subcommands
-    match config.get_subcommands(command) {
+    match config.get_subcommands(command, nested) {
         Some(subcommands) => {
             for subcommand in subcommands {
                 println!("{}", subcommand);
