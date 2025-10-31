@@ -1,3 +1,8 @@
+pub mod cli;
+pub mod error;
+pub mod handlers;
+pub mod shell;
+
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::fs;
