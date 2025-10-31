@@ -8,5 +8,6 @@ subcommands = [
     "serve",
     "models",
     "export",
-    "github",
+    { name = "github", subcommands = ["install", "run"] },
 ]
+

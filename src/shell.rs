@@ -33,6 +33,29 @@ _compack_completion_or_space() {
         LBUFFER="${cmd}"
     else
         LBUFFER="${cmd} ${selected}"
+        
+        # Check if this subcommand has nested subcommands
+        local nested_candidates=$(compack query "$cmd $selected" 2>/dev/null)
+        
+        # If nested subcommands exist, trigger another selection
+        if [[ -n "$nested_candidates" ]]; then
+            # Add option to run without nested subcommand
+            local nested_options="[Run without nested subcommand]"$'\n'"$nested_candidates"
+            
+            # Open fzf for nested selection
+            local nested_selected=$(echo "$nested_options" | fzf --height 40% --reverse --prompt="$cmd $selected > " --bind=tab:down,shift-tab:up)
+            
+            # Handle ESC pressed (nothing selected)
+            if [[ -z "$nested_selected" ]]; then
+                zle reset-prompt
+                return
+            fi
+            
+            # Set the command line based on nested selection
+            if [[ "$nested_selected" != "[Run without nested subcommand]" ]]; then
+                LBUFFER="${cmd} ${selected} ${nested_selected}"
+            fi
+        fi
     fi
     
     # Execute the command
