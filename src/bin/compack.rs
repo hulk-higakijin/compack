@@ -26,35 +26,37 @@ enum Commands {
 }
 
 const ZSH_INTEGRATION: &str = r#"# compack zsh integration
-_compack_completion() {
-    local cmd="${LBUFFER%% *}"
-
-    # Only trigger if we have exactly one word and just typed a space
-    if [[ "$LBUFFER" == "$cmd " && "$cmd" != "" ]]; then
-        local candidates=$(compack query "$cmd" 2>/dev/null)
-
-        if [[ -n "$candidates" ]]; then
-            local selected=$(echo "$candidates" | fzf --height 40% --reverse --prompt="$cmd > ")
-
-            if [[ -n "$selected" ]]; then
-                LBUFFER="${cmd} ${selected}"
-            fi
-        fi
-    fi
-}
-
-# Bind to space key
-bindkey ' ' _compack_completion_or_space
-
 _compack_completion_or_space() {
     # First insert the space
     zle self-insert
 
-    # Then trigger completion
-    _compack_completion
+    # Get the command (first word before space)
+    local cmd="${LBUFFER%% *}"
+
+    # Only trigger if we have exactly one word and just typed a space
+    if [[ "$LBUFFER" == "$cmd " && "$cmd" != "" ]]; then
+        # Check if this command has subcommands defined
+        local candidates=$(compack query "$cmd" 2>/dev/null)
+
+        if [[ -n "$candidates" ]]; then
+            # Command is defined, open fzf
+            local selected=$(echo "$candidates" | fzf --height 40% --reverse --prompt="$cmd > ")
+
+            if [[ -n "$selected" ]]; then
+                # User selected a subcommand
+                LBUFFER="${cmd} ${selected}"
+            fi
+            # If nothing selected (ESC pressed), LBUFFER stays as "${cmd} " with the space
+            
+            # Redraw the prompt to show the current buffer
+            zle reset-prompt
+        fi
+        # If no candidates (command not defined), just keep the space as normal input
+    fi
 }
 
 zle -N _compack_completion_or_space
+bindkey ' ' _compack_completion_or_space
 "#;
 
 fn main() {
