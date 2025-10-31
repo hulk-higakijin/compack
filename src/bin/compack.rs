@@ -142,14 +142,20 @@ fn handle_init(shell: Option<&str>) {
                 process::exit(1);
             }
 
-            // Create default config
-            let config = Config::default();
-
-            // Save config
-            if let Err(e) = config.save(&config_dir) {
-                eprintln!("Error: Failed to save config: {}", e);
+            // Copy bundled command files
+            if let Err(e) = Config::copy_bundled_commands(&config_dir) {
+                eprintln!("Error: Failed to copy bundled commands: {}", e);
                 process::exit(1);
             }
+
+            // Load the config to display what was created
+            let config = match Config::load(&config_dir) {
+                Ok(config) => config,
+                Err(e) => {
+                    eprintln!("Error: Failed to load config: {}", e);
+                    process::exit(1);
+                }
+            };
 
             println!("Created config directory: {}", config_dir.display());
             println!();
